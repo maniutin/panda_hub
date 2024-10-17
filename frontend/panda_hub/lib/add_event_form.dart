@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'snackbar.dart';
 
 // Model for event data
 class EventModel extends ChangeNotifier {
@@ -79,9 +80,7 @@ class EventModel extends ChangeNotifier {
       final DateTime? eventDateTime = _selectedDate;
 
       if (eventDateTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Please select a date.'),
-        ));
+        showCustomSnackBar(context, 'Please select a date.');
         return;
       }
 
@@ -97,11 +96,10 @@ class EventModel extends ChangeNotifier {
           'createdAt': Timestamp.now(),
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Event created successfully'),
-        ));
+        showCustomSnackBar(context, 'Event created successfully');
         Navigator.pop(context);
       } catch (error) {
+        showCustomSnackBar(context, 'Error submitting form: $error');
         print('Error submitting form: $error');
       }
     }

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'add_event_form.dart';
+import 'snackbar.dart';
 
 class EventProvider extends ChangeNotifier {
   List<Map<String, dynamic>> events = [];
