@@ -116,3 +116,28 @@ exports.deleteEvent = onRequest(async (req: any, res: any) => {
     res.status(500).send(error);
   }
 });
+
+// Filter events by eventType or date
+exports.filterEvents = onRequest(async (req: any, res: any) => {
+  // TODO: cleanup type
+  const { eventType, date } = req.query;
+  try {
+    let eventsRef = db.collection("events");
+    if (eventType) {
+      eventsRef = eventsRef.where("eventType", "==", eventType);
+    }
+    if (date) {
+      const filterDate = Timestamp.fromDate(new Date(date));
+      eventsRef = eventsRef.where("date", "==", filterDate);
+    }
+    const eventsSnapshot = await eventsRef.get();
+    const events = eventsSnapshot.docs.map((doc: any) => ({
+      // TODO: cleanup types
+      id: doc.id,
+      ...doc.data(),
+    }));
+    res.status(200).json(events);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
