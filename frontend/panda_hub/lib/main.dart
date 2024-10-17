@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert'; // For JSON decoding
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(MyApp());
@@ -27,15 +28,15 @@ class EventListScreen extends StatefulWidget {
 class _EventListScreenState extends State<EventListScreen> {
   List<dynamic> events = [];
   bool isLoading = false;
-  bool showForm = false; // To toggle form visibility
+  Map<int, bool> expandedStates = {}; // Track expanded state for each event
+  Map<int, bool> editStates = {}; // Track editing state for each event
+  Map<int, TextEditingController> titleControllers = {};
+  Map<int, TextEditingController> descriptionControllers = {};
+  Map<int, TextEditingController> locationControllers = {};
+  Map<int, TextEditingController> organizerControllers = {};
+  Map<int, String?> eventTypeSelections = {};
 
-  // Form field controllers
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  DateTime? _selectedDate;
-  String _eventType = 'Conference'; // Default event type
-  final _locationController = TextEditingController();
-  final _organizerController = TextEditingController();
+  final List<String> eventTypes = ['Conference', 'Workshop', 'Webinar'];
 
   @override
   void initState() {
@@ -55,9 +56,9 @@ class _EventListScreenState extends State<EventListScreen> {
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
-        // Decode the JSON response and update the state with the list of events
+        final List<dynamic> decodedEvents = json.decode(response.body);
         setState(() {
-          events = json.decode(response.body);
+          events = decodedEvents;
           isLoading = false;
         });
       } else {
@@ -71,65 +72,64 @@ class _EventListScreenState extends State<EventListScreen> {
     }
   }
 
-  // Function to send event data to the server
-  Future<void> submitEvent() async {
-    final url = Uri.parse(
-        'http://127.0.0.1:5001/panda-hub-a4da9/us-central1/createEvent');
+  DateTime? convertFirestoreTimestamp(dynamic timestamp) {
+    if (timestamp.containsKey('_seconds')) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp['_seconds'] * 1000);
+    }
+    return null;
+  }
 
-    // Prepare the data to send
-    final eventData = {
-      'title': _titleController.text,
-      'description': _descriptionController.text,
-      'date': _selectedDate?.toIso8601String(),
-      'eventType': _eventType,
-      'location': _locationController.text,
-      'organizer': _organizerController.text,
-    };
+  Future<void> updateEvent(dynamic event) async {
+    final url = Uri.parse(
+        'http://127.0.0.1:5001/panda-hub-a4da9/us-central1/updateEvent');
 
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
-        body: json.encode(eventData),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'id': event['id'], // Event ID
+          'title': event['title'],
+          'description': event['description'],
+          'location': event['location'],
+          'organizer': event['organizer'],
+          'eventType': event['eventType'],
+          'date': event['date'],
+        }),
       );
 
       if (response.statusCode == 200) {
-        print('Event created successfully');
-        fetchEvents(); // Refresh event list after creation
-        setState(() {
-          showForm = false; // Hide the form after submission
-          _clearForm(); // Clear the form fields
-        });
+        print('Event updated successfully');
+        fetchEvents(); // Refresh the event list after updating
       } else {
-        print('Failed to create event: ${response.body}');
+        print('Failed to update event: ${response.statusCode}');
       }
     } catch (error) {
-      print('Error submitting event: $error');
+      print('Error updating event: $error');
     }
   }
 
-  // Clear form fields
-  void _clearForm() {
-    _titleController.clear();
-    _descriptionController.clear();
-    _selectedDate = null;
-    _eventType = 'Conference';
-    _locationController.clear();
-    _organizerController.clear();
-  }
+  Future<void> deleteEvent(String eventId) async {
+    final url = Uri.parse(
+        'http://127.0.0.1:5001/panda-hub-a4da9/us-central1/deleteEvent');
 
-  // Function to show date picker
-  Future<void> _pickDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'id': eventId, // Event ID
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('Event deleted successfully');
+        fetchEvents(); // Refresh the event list after deleting
+      } else {
+        print('Failed to delete event: ${response.statusCode}');
+      }
+    } catch (error) {
+      print('Error deleting event: $error');
     }
   }
 
@@ -138,140 +138,213 @@ class _EventListScreenState extends State<EventListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Event List'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () {
-              setState(() {
-                showForm = !showForm; // Toggle form visibility
-              });
-            },
-          ),
-        ],
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                if (showForm)
-                  buildEventForm(), // Display the form if showForm is true
-                Expanded(
-                  child: events.isEmpty
-                      ? Center(child: Text('No events found'))
-                      : ListView.builder(
-                          itemCount: events.length,
-                          itemBuilder: (context, index) {
-                            final event = events[index];
-                            return Card(
-                              margin: EdgeInsets.all(10),
-                              child: Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      event['title'] ?? 'No Title',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : events.isEmpty
+              ? Center(child: Text('No events found'))
+              : ListView.builder(
+                  itemCount: events.length,
+                  itemBuilder: (context, index) {
+                    final event = events[index];
+
+                    DateTime? eventDate =
+                        convertFirestoreTimestamp(event['date']);
+                    DateTime? updatedAt =
+                        convertFirestoreTimestamp(event['updatedAt']);
+
+                    String updatedAtText = updatedAt != null
+                        ? updatedAt.toLocal().toString()
+                        : 'Unknown';
+
+                    bool isExpanded = expandedStates[index] ?? false;
+                    bool isEditing = editStates[index] ?? false;
+
+                    if (!titleControllers.containsKey(index)) {
+                      titleControllers[index] =
+                          TextEditingController(text: event['title']);
+                      descriptionControllers[index] =
+                          TextEditingController(text: event['description']);
+                      locationControllers[index] =
+                          TextEditingController(text: event['location']);
+                      organizerControllers[index] =
+                          TextEditingController(text: event['organizer']);
+                      eventTypeSelections[index] = event['eventType'];
+                    }
+
+                    return Card(
+                      margin: EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ListTile(
+                            title: isEditing
+                                ? TextFormField(
+                                    controller: titleControllers[index],
+                                    decoration:
+                                        InputDecoration(labelText: 'Title'),
+                                  )
+                                : Text(
+                                    event['title'],
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    SizedBox(height: 5),
+                                  ),
+                            trailing: IconButton(
+                              icon: Icon(
+                                isExpanded
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  expandedStates[index] = !isExpanded;
+                                });
+                              },
+                            ),
+                          ),
+                          if (isExpanded)
+                            Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (isEditing)
+                                    Column(
+                                      children: [
+                                        TextFormField(
+                                          controller:
+                                              descriptionControllers[index],
+                                          decoration: InputDecoration(
+                                              labelText: 'Description'),
+                                        ),
+                                        TextFormField(
+                                          controller:
+                                              locationControllers[index],
+                                          decoration: InputDecoration(
+                                              labelText: 'Location'),
+                                        ),
+                                        TextFormField(
+                                          controller:
+                                              organizerControllers[index],
+                                          decoration: InputDecoration(
+                                              labelText: 'Organizer'),
+                                        ),
+                                        DropdownButtonFormField<String>(
+                                          decoration: InputDecoration(
+                                              labelText: 'Event Type'),
+                                          value: eventTypeSelections[index],
+                                          items: eventTypes
+                                              .map((type) =>
+                                                  DropdownMenuItem<String>(
+                                                    value: type,
+                                                    child: Text(type),
+                                                  ))
+                                              .toList(),
+                                          onChanged: (newValue) {
+                                            setState(() {
+                                              eventTypeSelections[index] =
+                                                  newValue;
+                                              event['eventType'] = newValue;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    )
+                                  else ...[
                                     Text(
-                                      'Description: ${event['description'] ?? 'No Description'}',
+                                      'Description: ${event['description']}',
                                       style: TextStyle(fontSize: 16),
                                     ),
                                     SizedBox(height: 5),
                                     Text(
-                                      'Location: ${event['location'] ?? 'No Location'}',
+                                      'Location: ${event['location']}',
                                       style: TextStyle(fontSize: 16),
                                     ),
                                     SizedBox(height: 5),
                                     Text(
-                                      'Organizer: ${event['organizer'] ?? 'No Organizer'}',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      'Event Type: ${event['eventType'] ?? 'No Type'}',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      'Date: ${event['date'] ?? 'No Date'}',
+                                      'Organizer: ${event['organizer']}',
                                       style: TextStyle(fontSize: 16),
                                     ),
                                   ],
-                                ),
+                                  SizedBox(height: 5),
+                                  Text(
+                                    'Event Type: ${event['eventType']}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 5),
+                                  Text(
+                                    'Date: ${eventDate != null ? eventDate.toLocal().toString() : 'Unknown'}',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  SizedBox(height: 5),
+                                  Text(
+                                    'Last Updated: $updatedAtText',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      if (isEditing)
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            // Save the updates
+                                            setState(() {
+                                              event['title'] =
+                                                  titleControllers[index]!.text;
+                                              event['description'] =
+                                                  descriptionControllers[index]!
+                                                      .text;
+                                              event['location'] =
+                                                  locationControllers[index]!
+                                                      .text;
+                                              event['organizer'] =
+                                                  organizerControllers[index]!
+                                                      .text;
+                                              editStates[index] = false;
+                                            });
+                                            updateEvent(event);
+                                          },
+                                          child: Text('Submit'),
+                                        )
+                                      else
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            // Enter edit mode
+                                            setState(() {
+                                              editStates[index] = true;
+                                            });
+                                          },
+                                          child: Text('Edit'),
+                                        ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          deleteEvent(event['id']);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                        ),
+                                        child: Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
-    );
-  }
-
-  // Widget for the event creation form
-  Widget buildEventForm() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          TextField(
-            controller: _titleController,
-            decoration: InputDecoration(labelText: 'Title'),
-          ),
-          TextField(
-            controller: _descriptionController,
-            decoration: InputDecoration(labelText: 'Description'),
-          ),
-          SizedBox(height: 10),
-          Row(
-            children: [
-              Text(
-                _selectedDate == null
-                    ? 'Select Date'
-                    : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
-              ),
-              SizedBox(width: 20),
-              ElevatedButton(
-                onPressed: () => _pickDate(context),
-                child: Text('Pick Date'),
-              ),
-            ],
-          ),
-          DropdownButton<String>(
-            value: _eventType,
-            onChanged: (String? newValue) {
-              setState(() {
-                _eventType = newValue!;
-              });
-            },
-            items: <String>['Conference', 'Workshop', 'Webinar']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-          ),
-          TextField(
-            controller: _locationController,
-            decoration: InputDecoration(labelText: 'Location'),
-          ),
-          TextField(
-            controller: _organizerController,
-            decoration: InputDecoration(labelText: 'Organizer'),
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: submitEvent,
-            child: Text('Submit Event'),
-          ),
-        ],
-      ),
     );
   }
 }
