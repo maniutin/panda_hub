@@ -42,3 +42,4 @@ You need to have an instance of Firestore running locally. Default Firestore emu
 2. Fully functioning BE/FE interactions
 3. Clean up types in Backend
 4. Default data to seed
+5. Improve error messages for users
