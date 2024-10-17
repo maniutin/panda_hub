@@ -59,7 +59,7 @@ exports.getEventById = onRequest(async (req: any, res: any) => {
 });
 
 // Add a new event
-// example string: http://127.0.0.1:5001/panda-hub-a4da9/us-central1/createEvent?title=Event%20Title&description=Event%20Description&location=Event%20Location&organizer=Event%20Organizer&eventType=Event%20Type&date=2024-12-25
+// example string: http://127.0.0.1:5001/panda-hub-a4da9/us-central1/createEvent?title=Event%20Title&description=Event%20Description&location=Event%20Location&organizer=Event%20Organizer&eventType=Conference&date=2024-12-25
 exports.createEvent = onRequest(async (req: any, res: any) => {
   // TODO: cleanup types
   const { title, description, date, location, organizer, eventType } = req.body;
@@ -120,7 +120,7 @@ exports.deleteEvent = onRequest(async (req: any, res: any) => {
 // Filter events by eventType or date
 exports.filterEvents = onRequest(async (req: any, res: any) => {
   // TODO: cleanup type
-  const { eventType, date } = req.query;
+  const { eventType, date } = req.body;
   try {
     let eventsRef = db.collection("events");
     if (eventType) {
