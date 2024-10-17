@@ -64,6 +64,14 @@ class _EventListScreenState extends State<EventListScreen> {
     }
   }
 
+  // Function to handle Firestore Timestamp format
+  DateTime? convertFirestoreTimestamp(dynamic timestamp) {
+    if (timestamp is Map && timestamp.containsKey('seconds')) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp['seconds'] * 1000);
+    }
+    return null; // Return null if the timestamp is missing/invalid
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,10 +90,69 @@ class _EventListScreenState extends State<EventListScreen> {
                   itemCount: events.length,
                   itemBuilder: (context, index) {
                     final event = events[index];
-                    return ListTile(
-                      title: Text(event['title']),
-                      subtitle: Text('Organizer: ${event['organizer']}'),
-                      trailing: Text(event['eventType']),
+
+                    // Convert Firestore Timestamps to DateTime using the helper function
+                    DateTime? eventDate =
+                        convertFirestoreTimestamp(event['date']);
+                    DateTime? updatedAt =
+                        convertFirestoreTimestamp(event['updatedAt']);
+
+                    // If updatedAt is null, show "Unknown" or any other placeholder
+                    String updatedAtText = updatedAt != null
+                        ? updatedAt.toLocal().toString()
+                        : 'Unknown';
+
+                    return Card(
+                      margin: EdgeInsets.all(10),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event['title'],
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Description: ${event['description']}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Location: ${event['location']}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Organizer: ${event['organizer']}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Event Type: ${event['eventType']}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Date: ${eventDate != null ? eventDate.toLocal().toString() : 'Unknown'}',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              'Last Updated: $updatedAtText',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
