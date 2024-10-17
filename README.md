@@ -21,7 +21,13 @@ You need to have an instance of Firestore running locally. Default Firestore emu
 1. Navigate to `/backend/` and run `firebase emulators:start`
 2. Navigate to `/frontend/panda_hub/` and run `flutter pub get` followed by `flutter run -d chrome`
 
-Screenshots:
+### Screenshots:
+
+![List view](https://github.com/maniutin/panda_hub/blob/main/frontend/panda_hub/web/assets/screenshots/list_view.png "List View")
+![Filtered List](https://github.com/maniutin/panda_hub/blob/main/frontend/panda_hub/web/assets/screenshots/filtered_list.png "Filtered List")
+![Add event view](https://github.com/maniutin/panda_hub/blob/main/frontend/panda_hub/web/assets/screenshots/add_event_view.png "Add Event View")
+![Event Details view](https://github.com/maniutin/panda_hub/blob/main/frontend/panda_hub/web/assets/screenshots/event_details.png "Event Details View")
+![Edit view](https://github.com/maniutin/panda_hub/blob/main/frontend/panda_hub/web/assets/screenshots/edit_view.png "Edit View")
 
 [Video](https://share.vidyard.com/watch/vZWqPBgYHEsRxMxQgTCVf1?)
 
