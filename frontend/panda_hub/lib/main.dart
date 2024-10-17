@@ -47,8 +47,15 @@ class _EventListScreenState extends State<EventListScreen> {
 
       if (response.statusCode == 200) {
         // Decode the JSON response and update the state with the list of events
+        final List<dynamic> decodedEvents = json.decode(response.body);
+
+        // Debugging: Log each event to check its structure
+        for (var event in decodedEvents) {
+          print(event); // Check if updatedAt exists and its format
+        }
+
         setState(() {
-          events = json.decode(response.body);
+          events = decodedEvents;
           isLoading = false;
         });
       } else {
