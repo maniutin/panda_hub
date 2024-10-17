@@ -31,7 +31,63 @@ You need to have an instance of Firestore running locally. Default Firestore emu
 
 [Video](https://share.vidyard.com/watch/vZWqPBgYHEsRxMxQgTCVf1?)
 
-### Future considerations:
+## Test Cases
+
+### Backend
+
+#### 1. Firebase Setup
+
+**1.1: Cloud Functions Setup**
+
+Verify if Firebase Cloud Functions are set up correctly and are operational.
+
+**1.2: Firestore Database Setup**
+
+Ensure Firestore is configured and connected to the Firebase project.
+
+#### 2. API Endpoints
+
+**2.1: Successful Event Creation**
+
+Verify that a new event is successfully added to the Firestore database with valid data.
+
+**2.2: Event Creation with Missing Fields**
+
+Event creation should fail with an appropriate error message.
+
+**2.3: Get All Events**
+
+Retrieve all events from Firestore.
+
+**2.4: No Events in Database**
+
+The response should return an empty list.
+
+**2.5: Get Event by ID**
+
+Retrieve a specific event using a valid event ID.
+
+**2.6: Retrieve Event by Invalid ID**
+
+An error message should be returned (e.g., 404 Not Found).
+
+**2.7: Update Event**
+
+Update the details of an existing event and ensure the updatedAt field is updated.
+
+**2.8: Event Update with Invalid Data**
+
+The update should fail, and an appropriate error message should be returned.
+
+**2.9: Delete Event**
+
+The event should be successfully deleted, and a confirmation should be returned.
+
+**2.10: Filter Events by Event Type or Date**
+
+Only events with the appropriate event type should be returned.
+
+## Future considerations:
 
 1. Improvements to UI/UX:
 
