@@ -1,51 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 
-class AddEventForm extends StatefulWidget {
-  @override
-  _AddEventFormState createState() => _AddEventFormState();
-}
-
-class _AddEventFormState extends State<AddEventForm> {
-  final _formKey = GlobalKey<FormState>();
+// Model for event data
+class EventModel extends ChangeNotifier {
   String? _selectedEventType;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _organizerController = TextEditingController();
+  final TextEditingController titleController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController locationController = TextEditingController();
+  final TextEditingController organizerController = TextEditingController();
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
+  String? get selectedEventType => _selectedEventType;
+  DateTime? get selectedDate => _selectedDate;
+  TimeOfDay? get selectedTime => _selectedTime;
+
+  set selectedEventType(String? eventType) {
+    _selectedEventType = eventType;
+    notifyListeners();
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
+  set selectedDate(DateTime? date) {
+    _selectedDate = date;
+    notifyListeners();
   }
 
-  DateTime? _getCombinedDateTime() {
-    if (_selectedDate != null) {
+  set selectedTime(TimeOfDay? time) {
+    _selectedTime = time;
+    notifyListeners();
+  }
+
+  DateTime? getCombinedDateTime() {
+    if (_selectedDate != null && _selectedTime != null) {
       return DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
@@ -57,21 +46,42 @@ class _AddEventFormState extends State<AddEventForm> {
     return null;
   }
 
-  Future<void> _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      final String title = _titleController.text;
-      final String description = _descriptionController.text;
-      final String location = _locationController.text;
-      final String organizer = _organizerController.text;
+  Future<void> selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != _selectedDate) {
+      selectedDate = picked;
+    }
+  }
+
+  Future<void> selectTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null && picked != _selectedTime) {
+      selectedTime = picked;
+    }
+  }
+
+  Future<void> submitForm(
+      BuildContext context, GlobalKey<FormState> formKey) async {
+    if (formKey.currentState!.validate()) {
+      final String title = titleController.text;
+      final String description = descriptionController.text;
+      final String location = locationController.text;
+      final String organizer = organizerController.text;
       final String eventType = _selectedEventType!;
       final DateTime? eventDateTime = _selectedDate;
 
       if (eventDateTime == null) {
-        print('Please select date.');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Please select a date.'),
         ));
-
         return;
       }
 
@@ -84,90 +94,90 @@ class _AddEventFormState extends State<AddEventForm> {
           'organizer': organizer,
           'eventType': eventType,
           'date': eventDateTime,
-          'createdAt':
-              Timestamp.now(), // Optional: track when event was created
+          'createdAt': Timestamp.now(),
         });
 
-        print('Event created successfully');
-        Navigator.pop(
-            context); // Close the form screen after successful submission
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Event created successfully'),
+        ));
+        Navigator.pop(context);
       } catch (error) {
         print('Error submitting form: $error');
       }
     }
   }
+}
+
+class AddEventForm extends StatelessWidget {
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Add Event'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(labelText: 'Title'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
+    return ChangeNotifierProvider(
+      create: (_) => EventModel(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Add Event'),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Consumer<EventModel>(
+            builder: (context, model, child) => Form(
+              key: _formKey,
+              child: ListView(
+                children: [
+                  TextFormField(
+                    controller: model.titleController,
+                    decoration: InputDecoration(labelText: 'Title'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a title';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: model.descriptionController,
+                    decoration: InputDecoration(labelText: 'Description'),
+                  ),
+                  TextFormField(
+                    controller: model.locationController,
+                    decoration: InputDecoration(labelText: 'Location'),
+                  ),
+                  TextFormField(
+                    controller: model.organizerController,
+                    decoration: InputDecoration(labelText: 'Organizer'),
+                  ),
+                  ListTile(
+                    title: Text(model.selectedDate == null
+                        ? 'Select Event Date'
+                        : 'Event Date: ${DateFormat.yMMMd().format(model.selectedDate!)}'),
+                    trailing: Icon(Icons.calendar_today),
+                    onTap: () => model.selectDate(context),
+                  ),
+                  DropdownButtonFormField<String>(
+                    decoration: InputDecoration(labelText: 'Event Type'),
+                    value: model.selectedEventType,
+                    items: ['Conference', 'Workshop', 'Webinar']
+                        .map((type) => DropdownMenuItem<String>(
+                              value: type,
+                              child: Text(type),
+                            ))
+                        .toList(),
+                    onChanged: (newValue) {
+                      model.selectedEventType = newValue;
+                    },
+                    validator: (value) =>
+                        value == null ? 'Please select an event type' : null,
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => model.submitForm(context, _formKey),
+                    child: Text('Submit'),
+                  ),
+                ],
               ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(labelText: 'Description'),
-              ),
-              TextFormField(
-                controller: _locationController,
-                decoration: InputDecoration(labelText: 'Location'),
-              ),
-              TextFormField(
-                controller: _organizerController,
-                decoration: InputDecoration(labelText: 'Organizer'),
-              ),
-              ListTile(
-                title: Text(_selectedDate == null
-                    ? 'Select Event Date'
-                    : 'Event Date: ${DateFormat.yMMMd().format(_selectedDate!)}'),
-                trailing: Icon(Icons.calendar_today),
-                onTap: () => _selectDate(context),
-              ),
-              // ListTile(
-              //   title: Text(_selectedTime == null
-              //       ? 'Select Event Time'
-              //       : 'Event Time: ${_selectedTime!.format(context)}'),
-              //   trailing: Icon(Icons.access_time),
-              //   onTap: () => _selectTime(context),
-              // ),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: 'Event Type'),
-                value: _selectedEventType,
-                items: ['Conference', 'Workshop', 'Webinar']
-                    .map((type) => DropdownMenuItem<String>(
-                          value: type,
-                          child: Text(type),
-                        ))
-                    .toList(),
-                onChanged: (newValue) {
-                  setState(() {
-                    _selectedEventType = newValue;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'Please select an event type' : null,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _submitForm,
-                child: Text('Submit'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
